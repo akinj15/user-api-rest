@@ -1,59 +1,158 @@
-import Sequelize, { Model } from 'sequelize';
-import bcryptjs from 'bcryptjs';
+import bcryptjs from "bcryptjs";
+import { prismaClient } from "../database/prismaClient.js";
+import jwt from 'jsonwebtoken';
 
-export default class User extends Model {
-  static init(sequelize) {
-    super.init({
-      nome: {
-        type: Sequelize.STRING,
-        defaultValue: '',
-        validate: {
-          len: {
-            args: [4, 255],
-            msg: 'o usuário só pode ter no minimo 4 caracters.',
-          },
-        },
-      },
-      email: {
-        type: Sequelize.STRING,
-        defaultValue: '',
-        unique: {
-          msg: 'email já exite',
-        },
-        validate: {
-          isEmail: {
-            args: [4, 255],
-            msg: 'Email invalido.',
-          },
-        },
-      },
-      password_hash: {
-        type: Sequelize.STRING,
-        defaultValue: '',
-      },
-      password: {
-        type: Sequelize.VIRTUAL,
-        defaultValue: '',
-        validate: {
-          len: {
-            args: [4, 255],
-            msg: 'A senha só pode ter no minimo 4 caracters.',
-          },
-        },
-      },
-    }, {
-      sequelize,
-    });
-
-    this.addHook('beforeSave', async (user) => {
-      if (user.password) {
-        user.password_hash = await bcryptjs.hash(user.password, 8);
+export default class User {
+  async createUser(user) {
+    let error = [];
+    try {
+      if (!user.userName) {
+        error.push("o nome de usuario e obrigatorio");
       }
-    });
-    return this;
+      if (!user.email) {
+        error;
+        error.push("o email do usuario e obrigatorio");
+      }
+      if (!user.password) {
+        error.push("o password de usuario e obrigatorio");
+      }
+      if (user.password.length <= 8) {
+        error.push("o password deve ser conter pelomenos 8 caracters");
+      }
+      if (error.length) {
+        return { errors: error, error: true };
+      }
+      this.userName = user.userName;
+      this.email = user.email;
+      this.password = this.encrypt(user.password);
+
+      this.user = {
+        userName: this.userName,
+        email: this.email,
+        password: await this.password,
+      };
+      this.user = await prismaClient.user.create({
+        data: this.user,
+      });
+
+      return {
+        data: this.user,
+        error: false,
+      };
+    } catch (e) {
+      return e;
+    }
   }
 
-  passwordIsValid(password) {
-    return bcryptjs.compare(password, this.password_hash);
+  encrypt(password) {
+    this.passwordBeforeEncrypt = password;
+    return bcryptjs.hash(password, 8);
+  }
+
+  comparete(password, passwordDB) {
+    return bcryptjs.compare(password, passwordDB);
+  }
+
+  async autorization(user, userDB) {
+    if (!user.email) {
+      return { error: "o email do usuario e obrigatorio" };
+    }
+    if (!user.password) {
+      return { error: "o password de usuario e obrigatorio" };
+    }
+    const token = jwt.sign({ id: userDB.id, email: userDB.email }, process.env.TOKEN_SECRET, {
+      expiresIn: process.env.TOKEN_EXPIRATION,
+    });
+    if (await this.comparete(user.password, userDB.password)) {
+      return {
+        id: user.id,
+        email: userDB.email,
+        userName: userDB.userName,
+        logged: true,
+        token: token
+      };
+    }
+    return {
+      error: "o password é invalido",
+    };
+  }
+
+  async listAll() {
+    return await prismaClient.user.findMany();
+  }
+
+  async findOne(id) {
+    return await prismaClient.user.findUnique({
+      where: {
+        id: id
+      }
+    })
+  }
+
+  async findLogin (email) {
+    return await prismaClient.user.findUnique({
+      where: {
+        email
+      }
+    });
+  }
+
+  async autenticate (user) {
+    let { email , password } = user;
+    let userDB = await this.findLogin(email);
+    if (!userDB){
+      return{
+        error: 'email de usuario nao encontrado'
+      }
+    }
+
+    let userAutorized = await this.autorization({email, password}, userDB)
+    return userAutorized;
+  }
+
+  async deleteUser (user) {
+    let { email , password } = user;
+    let userDB = await this.findLogin(email);
+    if (!userDB){
+      return{
+        error: 'email de usuario nao encontrado'
+      }
+    }
+
+    let userAutorized = await this.autorization({email, password}, userDB)
+    if(userAutorized.error) {
+      return userAutorized;
+    }
+
+    prismaClient.user.delete({
+      where: {
+        email
+      }
+    })
+
+    return userAutorized;
+  }
+  async updatePasswordUser (user) {
+    let { email , password } = user;
+    let userDB = await this.findLogin(email);
+    if (!userDB){
+      return{
+        error: 'email de usuario nao encontrado'
+      }
+    }
+    let userAutorized = await this.autorization({email, password}, userDB)
+    if(userAutorized.error) {
+      return userAutorized;
+    }
+    let updatedUser = await prismaClient.user.update({
+      where: {
+        email
+      },
+      update: {
+        password
+      }
+    });
+
+    return updatedUser;
   }
 }

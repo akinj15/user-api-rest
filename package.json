@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "start": "node ./server.js"
   },
   "author": "",
   "license": "ISC",
@@ -14,15 +15,16 @@
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.26.0",
     "nodemon": "^2.0.19",
-    "sequelize-cli": "^6.4.1",
-    "sucrase": "^3.24.0"
+    "prisma": "^4.11.0"
   },
   "dependencies": {
+    "@prisma/client": "^4.11.0",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.0.1",
+    "email-validator": "^2.0.4",
     "express": "^4.18.1",
     "jsonwebtoken": "^8.5.1",
-    "mariadb": "^3.0.0",
-    "sequelize": "^6.21.3"
-  }
+    "mariadb": "^3.0.0"
+  },
+  "type": "module"
 }

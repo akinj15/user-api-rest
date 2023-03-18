@@ -1,0 +1,29 @@
+version: '3.1'
+services:
+  db:
+    container_name: 'database-node'
+    image: mysql
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb_force_recovery=0
+    restart: always
+    ports:
+      - '3308:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: banco
+      MYSQL_USER: akin
+      MYSQL_PASSWORD: 1234
+      TZ: America/Fortaleza
+    volumes:
+      - ~/dev/user-api-rest/banco:/var/lib/mysql
+  app:
+    build: .
+    ports:
+      - '3001:3001'
+    volumes:
+      - ~/dev/user-api-rest/:/usr/app
+    restart: always
+    command: npm run start
